@@ -1,0 +1,15 @@
+.venv
+
+*.pyc
+*__pycache__
+
+# Pyinstaller Build Results
+/build
+/dist
+
+/out/
+
+# User Preferences
+settings.json
+*.bnk
+*.npk

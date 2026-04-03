@@ -1,0 +1,137 @@
+name: Build Workflow
+
+on:
+  workflow_call:
+    inputs:
+      asset_suffix:
+        description: 'Suffix to append to asset names'
+        required: false
+        default: ''
+        type: string
+    
+jobs:
+  build:
+    name: Build on ${{ matrix.os }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            asset_name: neoxtractor-linux
+          - os: windows-latest
+            arch: x64
+            asset_name: neoxtractor-windows
+          - os: macos-15-intel
+            arch: x64
+            asset_name: neoxtractor-macos-x64
+          - os: macos-latest
+            arch: arm64
+            asset_name: neoxtractor-macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整的 git 历史用于生成构建信息
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13.5'  # 明确指定版本，与 .python-version 一致
+          architecture: ${{ matrix.arch }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.9.22'
+          
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.cache/pip
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies (macOS)
+        shell: bash
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=12.0
+          uv sync --python-platform ${{ matrix.arch == 'x64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }} --locked
+          uv pip install pyinstaller
+      
+      - name: Install dependencies (Linux/Windows)
+        shell: bash
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: |
+          uv sync --locked
+          uv pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          uv run pyinstaller main.spec
+        
+      - name: Create archive with symlinks (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd dist/main
+          tar -czf ../${{ matrix.asset_name }}${{ inputs.asset_suffix }}.tar.gz .
+        
+      - name: Create ZIP archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd dist/main
+          # Windows 下创建 ZIP 压缩包，保留可执行文件属性
+          Compress-Archive -Path * -DestinationPath ../${{ matrix.asset_name }}${{ inputs.asset_suffix }}.zip -CompressionLevel Optimal
+        
+      - name: Verify executable (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # 验证生成的可执行文件是否可以运行（检查版本信息）
+          $exePath = "dist/main/neoxtractor.exe"
+          if (Test-Path $exePath) {
+            Write-Output "✅ Executable exists: $exePath"
+            # 尝试运行 --version 来验证
+            $result = & $exePath --version 2>&1
+            Write-Output "Version check output: $result"
+          } else {
+            Write-Error "❌ Executable not found: $exePath"
+            exit 1
+          }
+        
+      - name: Verify executable (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          # 验证生成的可执行文件是否可以运行
+          exe_path="dist/main/neoxtractor"
+          if [ -f "$exe_path" ]; then
+            echo "✅ Executable exists: $exe_path"
+            # 检查文件类型和权限
+            file "$exe_path"
+            # 尝试运行 --version 来验证
+            "$exe_path" --version || true
+          else
+            echo "❌ Executable not found: $exe_path"
+            exit 1
+          fi
+        
+      - name: Upload artifact (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}${{ inputs.asset_suffix }}
+          path: dist/${{ matrix.asset_name }}${{ inputs.asset_suffix }}.tar.gz
+          
+      - name: Upload artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}${{ inputs.asset_suffix }}
+          path: dist/${{ matrix.asset_name }}${{ inputs.asset_suffix }}.zip
+          compression-level: 9
