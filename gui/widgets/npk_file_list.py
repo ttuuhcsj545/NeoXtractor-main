@@ -150,12 +150,12 @@ class NPKFileList(QtWidgets.QListView):
         menu = QtWidgets.QMenu(self)
 
         # Add extract option for any selection
-        extract = menu.addAction("Extract")
+        extract = menu.addAction("提取")
         extract.triggered.connect(lambda: self.extract_entries(indexes))
 
         # Batch convert & export (images / meshes)
         menu.addSeparator()
-        convert_export = menu.addAction("Batch Convert && Export…")
+        convert_export = menu.addAction("批量转换并导出…")
         convert_export.triggered.connect(lambda: self.batch_convert_export(indexes))
 
         # Check what types are in the selection to give a hint in the menu text
@@ -166,24 +166,24 @@ class NPKFileList(QtWidgets.QListView):
             _has_mesh = any(_is_mesh_entry(e) for e in _entries_preview)
             _type_hint = []
             if _has_img:
-                _type_hint.append("images")
+                _type_hint.append("图像")
             if _has_mesh:
-                _type_hint.append("meshes")
+                _type_hint.append("模型")
             if _type_hint:
                 convert_export.setText(
-                    f"Batch Convert && Export… ({', '.join(_type_hint)})"
+                    f"批量转换并导出… ({'、'.join(_type_hint)})"
                 )
 
         menu.addSeparator()
         for viewer in ALL_VIEWERS:
-            viewer_action = menu.addAction("Open in " + viewer.name)
+            viewer_action = menu.addAction("在 " + viewer.name + " 中打开")
             viewer_action.triggered.connect(
                 lambda _checked, v=viewer: self.open_entries_with(indexes, v)
             )
 
         if len(indexes) == 1:
             menu.addSeparator()
-            rename = menu.addAction("Rename")
+            rename = menu.addAction("重命名")
             rename.triggered.connect(lambda: self.show_rename_dialog(indexes[0]))
 
         # Show the context menu at the current position
@@ -226,9 +226,9 @@ class NPKFileList(QtWidgets.QListView):
             # Show save file dialog
             file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
-                "Extract File",
+                "提取文件",
                 filename,
-                "All Files (*.*)"
+                "所有文件 (*.*)"
             )
 
             if file_path:
@@ -237,20 +237,20 @@ class NPKFileList(QtWidgets.QListView):
                         f.write(entry.data)
                     QtWidgets.QMessageBox.information(
                         self,
-                        "Success", 
-                        f"File extracted to {file_path}"
+                        "成功", 
+                        f"文件提取到 {file_path}"
                     )
                 except Exception as e:
                     QtWidgets.QMessageBox.critical(
                         self,
-                        "Error", 
-                        f"Failed to extract file: {str(e)}"
+                        "错误", 
+                        f"提取文件失败: {str(e)}"
                     )
         else:
             # For multiple files, show directory selection dialog
             dir_path = QtWidgets.QFileDialog.getExistingDirectory(
                 self,
-                "Select Directory to Extract Files",
+                "选择提取文件的目录",
                 "",
                 QtWidgets.QFileDialog.Option.ShowDirsOnly
             )
@@ -281,16 +281,16 @@ class NPKFileList(QtWidgets.QListView):
                         except Exception:
                             fail_count += 1
 
-                    message = f"Extracted {success_count} files to {dir_path}"
+                    message = f"已提取 {success_count} 个文件到 {dir_path}"
                     if fail_count > 0:
-                        message += f"\n{fail_count} files failed to extract"
+                        message += f"\n{fail_count} 个文件提取失败"
 
-                    QtWidgets.QMessageBox.information(self, "Extraction Complete", message)
+                    QtWidgets.QMessageBox.information(self, "提取完成", message)
                 except Exception as e:
                     QtWidgets.QMessageBox.critical(
                         self,
-                        "Error",
-                        f"Failed to extract files: {str(e)}"
+                        "错误",
+                        f"提取文件失败: {str(e)}"
                     )
 
     def batch_convert_export(self, indexes: list[QtCore.QModelIndex]):
@@ -332,8 +332,8 @@ class NPKFileList(QtWidgets.QListView):
         # Show input dialog to get new name
         new_name, ok = QtWidgets.QInputDialog.getText(
             self,
-            "Rename File",
-            f"Enter new name for {self.model().get_filename(index)}:",
+            "重命名文件",
+            f"为 {self.model().get_filename(index)} 输入新名称:",
             QtWidgets.QLineEdit.EchoMode.Normal,
             ""
         )

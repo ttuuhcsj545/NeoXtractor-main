@@ -95,7 +95,7 @@ class AboutWindow(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("About NeoXtractor")
+        self.setWindowTitle("关于 NeoXtractor")
         self.setFixedSize(450, 300)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowType.WindowContextHelpButtonHint)
 
@@ -109,7 +109,7 @@ class AboutWindow(QtWidgets.QDialog):
 
         # Description
         description = QtWidgets.QLabel(
-            "A tool for extracting data from NPK files."
+            "用于从NPK文件中提取数据的工具。"
         )
         description.setWordWrap(True)
         description.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -128,18 +128,18 @@ class AboutWindow(QtWidgets.QDialog):
 
         if (BuildInfo.commit_hash is not None and BuildInfo.branch is not None) or BuildInfo.build_time is not None:
             if BuildInfo.commit_hash is not None and BuildInfo.branch is not None:
-                build = QtWidgets.QLabel(f"Build: {BuildInfo.commit_hash[:7]} (at {BuildInfo.branch})")
+                build = QtWidgets.QLabel(f"构建: {BuildInfo.commit_hash[:7]} (在 {BuildInfo.branch})")
                 build.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(build)
             if BuildInfo.build_time is not None:
-                build_time = QtWidgets.QLabel(f"Build time: {BuildInfo.build_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                build_time = QtWidgets.QLabel(f"构建时间: {BuildInfo.build_time.strftime('%Y-%m-%d %H:%M:%S')}")
                 build_time.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(build_time)
             layout.addStretch()
 
         layout.addWidget(copyright_info)
 
-        close_button = QtWidgets.QPushButton("Close")
+        close_button = QtWidgets.QPushButton("关闭")
         close_button.clicked.connect(self.close)
         layout.addWidget(close_button)
 

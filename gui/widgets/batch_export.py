@@ -81,7 +81,7 @@ class BatchExportWorker(QtCore.QRunnable):
 
         for i, (name, entry) in enumerate(self.entries):
             if self.cancelled:
-                self.signals.log.emit("Export cancelled by user.")
+                self.signals.log.emit("导出被用户取消。")
                 break
 
             self.signals.progress.emit(i)
@@ -96,7 +96,7 @@ class BatchExportWorker(QtCore.QRunnable):
                     )
                     self._save_image(entry.data, ext, out_path)
                     success += 1
-                    self.signals.log.emit(f"[OK] {name} -> {os.path.basename(out_path)}")
+                    self.signals.log.emit(f"[成功] {name} -> {os.path.basename(out_path)}")
 
                 elif self.mesh_format and ext in MESH_EXTENSIONS:
                     out_path = os.path.join(
@@ -105,7 +105,7 @@ class BatchExportWorker(QtCore.QRunnable):
                     )
                     self._save_mesh(entry.data, out_path)
                     success += 1
-                    self.signals.log.emit(f"[OK] {name} -> {os.path.basename(out_path)}")
+                    self.signals.log.emit(f"[成功] {name} -> {os.path.basename(out_path)}")
 
                 else:
                     # Entry type not selected for export, skip silently
@@ -113,7 +113,7 @@ class BatchExportWorker(QtCore.QRunnable):
 
             except Exception as e:
                 fail += 1
-                self.signals.log.emit(f"[FAIL] {name}: {e}")
+                self.signals.log.emit(f"[失败] {name}: {e}")
 
         self.signals.progress.emit(total)
         self.signals.finished.emit(success, fail)
@@ -178,7 +178,7 @@ class BatchExportDialog(QtWidgets.QDialog):
     ):
         super().__init__(parent)
         self.entries = entries
-        self.setWindowTitle("Batch Export")
+        self.setWindowTitle("批量导出")
         self.setMinimumWidth(560)
         self.setMinimumHeight(480)
 
@@ -196,28 +196,28 @@ class BatchExportDialog(QtWidgets.QDialog):
 
         # ---- Summary label ----
         summary = (
-            f"Selected: {len(self.entries)} entries  "
-            f"({self._image_count} images, {self._mesh_count} meshes)"
+            f"已选择: {len(self.entries)} 个条目  "
+            f"({self._image_count} 个图像, {self._mesh_count} 个模型)"
         )
         layout.addWidget(QtWidgets.QLabel(summary))
 
         # ---- Output directory ----
-        dir_group = QtWidgets.QGroupBox("Output Directory")
+        dir_group = QtWidgets.QGroupBox("输出目录")
         dir_layout = QtWidgets.QHBoxLayout(dir_group)
         self._dir_edit = QtWidgets.QLineEdit()
-        self._dir_edit.setPlaceholderText("Select output folder…")
-        browse_btn = QtWidgets.QPushButton("Browse…")
+        self._dir_edit.setPlaceholderText("选择输出文件夹…")
+        browse_btn = QtWidgets.QPushButton("浏览…")
         browse_btn.clicked.connect(self._browse_dir)
         dir_layout.addWidget(self._dir_edit)
         dir_layout.addWidget(browse_btn)
         layout.addWidget(dir_group)
 
         # ---- Image options ----
-        img_group = QtWidgets.QGroupBox("Image Export")
+        img_group = QtWidgets.QGroupBox("图像导出")
         img_layout = QtWidgets.QHBoxLayout(img_group)
-        img_layout.addWidget(QtWidgets.QLabel("Export images as:"))
+        img_layout.addWidget(QtWidgets.QLabel("导出图像为:"))
         self._img_combo = QtWidgets.QComboBox()
-        self._img_combo.addItem("(Skip / do not export images)", None)
+        self._img_combo.addItem("(跳过/不导出图像)", None)
         for fmt in IMAGE_OUTPUT_FORMATS:
             self._img_combo.addItem(fmt, fmt)
         self._img_combo.setCurrentIndex(1)  # default PNG
@@ -227,11 +227,11 @@ class BatchExportDialog(QtWidgets.QDialog):
         layout.addWidget(img_group)
 
         # ---- Mesh options ----
-        mesh_group = QtWidgets.QGroupBox("Mesh Export")
+        mesh_group = QtWidgets.QGroupBox("模型导出")
         mesh_layout = QtWidgets.QHBoxLayout(mesh_group)
-        mesh_layout.addWidget(QtWidgets.QLabel("Export meshes as:"))
+        mesh_layout.addWidget(QtWidgets.QLabel("导出模型为:"))
         self._mesh_combo = QtWidgets.QComboBox()
-        self._mesh_combo.addItem("(Skip / do not export meshes)", None)
+        self._mesh_combo.addItem("(跳过/不导出模型)", None)
         for fmt in MESH_FORMATS:
             self._mesh_combo.addItem(fmt.NAME, fmt)
         self._mesh_combo.setCurrentIndex(2)  # default glTF
@@ -241,11 +241,11 @@ class BatchExportDialog(QtWidgets.QDialog):
         layout.addWidget(mesh_group)
 
         # ---- Duplicate filename handling ----
-        dedup_group = QtWidgets.QGroupBox("File Name Conflict")
+        dedup_group = QtWidgets.QGroupBox("文件名冲突")
         dedup_layout = QtWidgets.QHBoxLayout(dedup_group)
-        self._overwrite_radio = QtWidgets.QRadioButton("Overwrite existing files")
-        self._skip_radio = QtWidgets.QRadioButton("Skip existing files")
-        self._rename_radio = QtWidgets.QRadioButton("Auto-rename (add _1, _2…)")
+        self._overwrite_radio = QtWidgets.QRadioButton("覆盖现有文件")
+        self._skip_radio = QtWidgets.QRadioButton("跳过现有文件")
+        self._rename_radio = QtWidgets.QRadioButton("自动重命名(添加 _1, _2…)")
         self._overwrite_radio.setChecked(True)
         dedup_layout.addWidget(self._overwrite_radio)
         dedup_layout.addWidget(self._skip_radio)
@@ -261,17 +261,17 @@ class BatchExportDialog(QtWidgets.QDialog):
         self._log = QtWidgets.QPlainTextEdit()
         self._log.setReadOnly(True)
         self._log.setMaximumHeight(140)
-        self._log.setPlaceholderText("Export log will appear here…")
+        self._log.setPlaceholderText("导出日志将显示在这里…")
         layout.addWidget(self._log)
 
         # ---- Buttons ----
         btn_layout = QtWidgets.QHBoxLayout()
-        self._export_btn = QtWidgets.QPushButton("Start Export")
+        self._export_btn = QtWidgets.QPushButton("开始导出")
         self._export_btn.setDefault(True)
         self._export_btn.clicked.connect(self._start_export)
-        self._cancel_btn = QtWidgets.QPushButton("Cancel")
+        self._cancel_btn = QtWidgets.QPushButton("取消")
         self._cancel_btn.clicked.connect(self._on_cancel)
-        self._close_btn = QtWidgets.QPushButton("Close")
+        self._close_btn = QtWidgets.QPushButton("关闭")
         self._close_btn.clicked.connect(self.accept)
         self._close_btn.setEnabled(False)
         btn_layout.addStretch()
@@ -282,7 +282,7 @@ class BatchExportDialog(QtWidgets.QDialog):
 
     # ------------------------------------------------------------------
     def _browse_dir(self):
-        d = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", "")
+        d = QtWidgets.QFileDialog.getExistingDirectory(self, "选择输出目录", "")
         if d:
             self._dir_edit.setText(d)
 
@@ -307,7 +307,7 @@ class BatchExportDialog(QtWidgets.QDialog):
     def _start_export(self):
         output_dir = self._dir_edit.text().strip()
         if not output_dir:
-            QtWidgets.QMessageBox.warning(self, "No Directory", "Please select an output directory.")
+            QtWidgets.QMessageBox.warning(self, "未选择目录", "请选择一个输出目录。")
             return
 
         image_format = self._img_combo.currentData()
@@ -315,8 +315,8 @@ class BatchExportDialog(QtWidgets.QDialog):
 
         if image_format is None and mesh_format is None:
             QtWidgets.QMessageBox.warning(
-                self, "Nothing to Export",
-                "Please select at least one export format (image or mesh)."
+                self, "无内容可导出",
+                "请选择至少一种导出格式(图像或模型)。"
             )
             return
 
@@ -347,8 +347,8 @@ class BatchExportDialog(QtWidgets.QDialog):
 
         if not resolved_entries:
             QtWidgets.QMessageBox.information(
-                self, "Nothing to Export",
-                "All files were skipped (already exist or no matching type)."
+                self, "无内容可导出",
+                "所有文件都被跳过(已存在或无匹配类型)。"
             )
             return
 
@@ -379,9 +379,9 @@ class BatchExportDialog(QtWidgets.QDialog):
         self._export_btn.setEnabled(True)
         self._close_btn.setEnabled(True)
         self._worker = None
-        msg = f"Export complete: {success} succeeded, {fail} failed."
+        msg = f"导出完成: {success}成功, {fail}失败。"
         self._log.appendPlainText(msg)
-        QtWidgets.QMessageBox.information(self, "Export Complete", msg)
+        QtWidgets.QMessageBox.information(self, "导出完成", msg)
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +410,7 @@ class _ResolvedBatchExportWorker(QtCore.QRunnable):
 
         for i, (name, entry, out_path) in enumerate(self.entries):
             if self.cancelled:
-                self.signals.log.emit("Export cancelled by user.")
+                self.signals.log.emit("导出被用户取消。")
                 break
 
             self.signals.progress.emit(i)
@@ -422,16 +422,16 @@ class _ResolvedBatchExportWorker(QtCore.QRunnable):
                 if self.image_format and ext in IMAGE_ALL_EXTENSIONS:
                     _save_image_to(entry.data, ext, self.image_format, out_path)
                     success += 1
-                    self.signals.log.emit(f"[OK]   {name}  →  {os.path.basename(out_path)}")
+                    self.signals.log.emit(f"[成功]   {name}  →  {os.path.basename(out_path)}")
 
                 elif self.mesh_format and ext in MESH_EXTENSIONS:
                     _save_mesh_to(entry.data, self.mesh_format, out_path)
                     success += 1
-                    self.signals.log.emit(f"[OK]   {name}  →  {os.path.basename(out_path)}")
+                    self.signals.log.emit(f"[成功]   {name}  →  {os.path.basename(out_path)}")
 
             except Exception as e:
                 fail += 1
-                self.signals.log.emit(f"[FAIL] {name}: {e}")
+                self.signals.log.emit(f"[失败] {name}: {e}")
 
         self.signals.progress.emit(total)
         self.signals.finished.emit(success, fail)

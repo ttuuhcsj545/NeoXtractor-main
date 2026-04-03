@@ -20,7 +20,7 @@ class SettingsWindow(QtWidgets.QDialog):
     def __init__(self, settings_manager: SettingsManager, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
-        self.setWindowTitle("Settings")
+        self.setWindowTitle("设置")
         self.setMinimumSize(800, 600)
 
         self._settings_manager = settings_manager
@@ -37,11 +37,11 @@ class SettingsWindow(QtWidgets.QDialog):
         action_layout = QtWidgets.QHBoxLayout()
         action_layout.addStretch()
 
-        self.apply_button = QtWidgets.QPushButton("Apply", self)
+        self.apply_button = QtWidgets.QPushButton("应用", self)
         self.apply_button.clicked.connect(self.save_settings)
         action_layout.addWidget(self.apply_button)
 
-        self.save_button = QtWidgets.QPushButton("Save", self)
+        self.save_button = QtWidgets.QPushButton("保存", self)
         self.save_button.setDefault(True)
         self.save_button.clicked.connect(lambda: (
             self.save_settings(),
@@ -53,17 +53,17 @@ class SettingsWindow(QtWidgets.QDialog):
 
     def _create_appearance_settings(self):
         """Create the appearance settings section."""
-        appearance_group = QtWidgets.QGroupBox("Appearance Settings", self)
+        appearance_group = QtWidgets.QGroupBox("外观设置", self)
         appearance_layout = QtWidgets.QVBoxLayout(appearance_group)
 
         # Theme selection
         theme_layout = QtWidgets.QHBoxLayout()
-        theme_layout.addWidget(QtWidgets.QLabel("Theme:", self))
+        theme_layout.addWidget(QtWidgets.QLabel("主题:", self))
 
         self.theme_combobox = QtWidgets.QComboBox(self)
 
         # Add system theme option
-        self.theme_combobox.addItem("System", None)
+        self.theme_combobox.addItem("系统", None)
 
         # Add available themes from theme manager
         try:
@@ -99,7 +99,7 @@ class SettingsWindow(QtWidgets.QDialog):
         def update_theme_description():
             current_data = self.theme_combobox.currentData()
             if current_data is None:
-                self.theme_description.setText("Use the system's default theme")
+                self.theme_description.setText("使用系统的默认主题")
             else:
                 try:
                     theme_manager = ThemeManager.instance()
@@ -119,7 +119,7 @@ class SettingsWindow(QtWidgets.QDialog):
         """
         Create the graphics settings section.
         """
-        graphics_group = QtWidgets.QGroupBox("Graphics Settings", self)
+        graphics_group = QtWidgets.QGroupBox("图形设置", self)
         graphics_layout = QtWidgets.QHBoxLayout(graphics_group)
 
         options_layout = QtWidgets.QVBoxLayout()
@@ -128,7 +128,7 @@ class SettingsWindow(QtWidgets.QDialog):
 
         self.backend_combobox = QtWidgets.QComboBox(self)
 
-        self.backend_combobox.addItem("Auto", QtWidgets.QRhiWidget.Api.Null)
+        self.backend_combobox.addItem("自动", QtWidgets.QRhiWidget.Api.Null)
 
         self.backend_combobox.addItem("OpenGL", QtWidgets.QRhiWidget.Api.OpenGL)
         self.backend_combobox.addItem("Vulkan", QtWidgets.QRhiWidget.Api.Vulkan)
@@ -146,11 +146,11 @@ class SettingsWindow(QtWidgets.QDialog):
             lambda idx: set_backend(self.backend_combobox.itemData(idx))
         )
 
-        options_layout.addWidget(QtWidgets.QLabel("Graphics API:", self))
+        options_layout.addWidget(QtWidgets.QLabel("图形API:", self))
         options_layout.addWidget(self.backend_combobox)
         self.current_backend = QtWidgets.QLabel("", self)
         options_layout.addWidget(self.current_backend)
-        options_layout.addWidget(QtWidgets.QLabel("To apply the API change, restart the application.", self))
+        options_layout.addWidget(QtWidgets.QLabel("要应用API更改，请重启应用程序。", self))
         options_layout.addStretch()
 
         options_layout.addWidget(QtWidgets.QLabel("MSAA:", self))
@@ -209,11 +209,11 @@ class SettingsWindow(QtWidgets.QDialog):
         backend_combo_item = self.backend_combobox.findData(current_api)
         if backend_combo_item != -1:
             current_backend = self.backend_combobox.itemText(backend_combo_item)
-        self.current_backend.setText(f"Current Backend: {current_backend}")
+        self.current_backend.setText(f"当前后端: {current_backend}")
 
         for sample_count in self.triangle_widget.rhi().supportedSampleCounts():
             if sample_count == 1:
-                self.msaa_combobox.addItem("No MSAA", 1)
+                self.msaa_combobox.addItem("无MSAA", 1)
             else:
                 self.msaa_combobox.addItem(f"{sample_count}x MSAA", sample_count)
 

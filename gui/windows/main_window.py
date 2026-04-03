@@ -61,7 +61,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.config_section = QtWidgets.QHBoxLayout()
 
-        self.active_config_label = QtWidgets.QLabel("Active Config:")
+        self.active_config_label = QtWidgets.QLabel("激活的配置:")
         self.active_config_label.setStyleSheet("font-weight: bold;")
         self.active_config_label.setFixedWidth(100)
         self.config_section.addWidget(self.active_config_label)
@@ -88,12 +88,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.filter_section = QtWidgets.QVBoxLayout()
 
-        self.filter_label = QtWidgets.QLabel("Filters")
+        self.filter_label = QtWidgets.QLabel("过滤器")
         self.filter_label.setStyleSheet("font-weight: bold;")
         self.filter_section.addWidget(self.filter_label)
 
         self.name_filter_input = QtWidgets.QLineEdit()
-        self.name_filter_input.setPlaceholderText("Search by filename...")
+        self.name_filter_input.setPlaceholderText("按文件名搜索...")
         def filter_text_changed():
             self.filter.filter_string = self.name_filter_input.text().lower()
             self.filter.apply_filter()
@@ -102,7 +102,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.filter_checkbox_section = QtWidgets.QGridLayout()
 
-        self.filter_binary_filter = QtWidgets.QCheckBox("Binary Files")
+        self.filter_binary_filter = QtWidgets.QCheckBox("二进制文件")
         self.filter_binary_filter.setChecked(True)
         def filter_binary_filter_changed(checked: bool):
             self.filter.include_binary = checked
@@ -110,7 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_binary_filter.toggled.connect(filter_binary_filter_changed)
         self.filter_checkbox_section.addWidget(self.filter_binary_filter, 0, 0)
 
-        self.filter_text_filter = QtWidgets.QCheckBox("Text Files")
+        self.filter_text_filter = QtWidgets.QCheckBox("文本文件")
         self.filter_text_filter.setChecked(True)
         def filter_text_filter_changed(checked: bool):
             self.filter.include_text = checked
@@ -121,9 +121,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_section.addLayout(self.filter_checkbox_section)
 
         self.entry_category_filter_combobox = QtWidgets.QComboBox()
-        self.entry_category_filter_combobox.addItem("All", None)
+        self.entry_category_filter_combobox.addItem("全部", None)
         for i in NPKEntryFileCategories:
-            self.entry_category_filter_combobox.addItem(i.value, i)
+            # 翻译枚举值为中文
+            translated_value = {
+                "Mesh": "模型",
+                "Texture": "纹理",
+                "Character": "角色",
+                "Bank": "音频库",
+                "Skin": "皮肤",
+                "NeoX XML": "NeoX XML",
+                "Other": "其他"
+            }.get(i.value, i.value)
+            self.entry_category_filter_combobox.addItem(translated_value, i)
         self.entry_category_filter_combobox.setCurrentIndex(0)
         def filter_type_changed(index: int):
             self.filter.filter_type = self.entry_category_filter_combobox.itemData(index)
@@ -132,7 +142,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.entry_category_filter_combobox.currentIndexChanged.connect(filter_type_changed)
         self.filter_section.addWidget(self.entry_category_filter_combobox)
 
-        self.mesh_biped_head_filter_checkbox = QtWidgets.QCheckBox("Only 'biped head' meshes")
+        self.mesh_biped_head_filter_checkbox = QtWidgets.QCheckBox("仅'biped head'模型")
         self.mesh_biped_head_filter_checkbox.setVisible(False)
         def filter_mesh_biped_head_changed(checked: bool):
             self.filter.mesh_biped_head = checked
@@ -147,8 +157,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_bar.setVisible(False)
         self.control_layout.addWidget(self.progress_bar)
 
-        self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.cancel_button.setStatusTip("Cancel loading the NPK file.")
+        self.cancel_button = QtWidgets.QPushButton("取消")
+        self.cancel_button.setStatusTip("取消加载NPK文件。")
         self.cancel_button.setVisible(False)
         def cancel_loading():
             self._loading_cancelled = True
@@ -180,28 +190,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.extract_buttons = QtWidgets.QHBoxLayout()
         self.extract_button_widget.setLayout(self.extract_buttons)
 
-        self.extract_all = QtWidgets.QPushButton("Extract All")
-        self.extract_all.setStatusTip("Extract all files in the NPK file.")
+        self.extract_all = QtWidgets.QPushButton("提取全部")
+        self.extract_all.setStatusTip("提取NPK文件中的所有文件。")
         self.extract_all.clicked.connect(lambda: extract_all(False))
         self.extract_buttons.addWidget(self.extract_all)
 
-        self.extract_filtered = QtWidgets.QPushButton("Extract Filtered")
-        self.extract_filtered.setStatusTip("Extract all files in the list.")
+        self.extract_filtered = QtWidgets.QPushButton("提取已过滤的")
+        self.extract_filtered.setStatusTip("提取列表中的所有文件。")
         self.extract_filtered.clicked.connect(lambda: extract_all(True))
 
         self.extract_buttons.addWidget(self.extract_filtered)
 
         # ---- Batch Convert & Export buttons ----
-        self.convert_export_all_btn = QtWidgets.QPushButton("Convert && Export All")
+        self.convert_export_all_btn = QtWidgets.QPushButton("转换并导出全部")
         self.convert_export_all_btn.setStatusTip(
-            "Batch convert all images/meshes in the NPK and export to a folder."
+            "批量转换NPK中的所有图像/模型并导出到文件夹。"
         )
         self.convert_export_all_btn.clicked.connect(lambda: batch_convert_export_all(False))
         self.extract_buttons.addWidget(self.convert_export_all_btn)
 
-        self.convert_export_filtered_btn = QtWidgets.QPushButton("Convert && Export Filtered")
+        self.convert_export_filtered_btn = QtWidgets.QPushButton("转换并导出已过滤的")
         self.convert_export_filtered_btn.setStatusTip(
-            "Batch convert only the currently filtered images/meshes and export to a folder."
+            "批量转换当前过滤的图像/模型并导出到文件夹。"
         )
         self.convert_export_filtered_btn.clicked.connect(lambda: batch_convert_export_all(True))
         self.extract_buttons.addWidget(self.convert_export_filtered_btn)
@@ -226,14 +236,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.unload_npk_action: QtGui.QAction
 
         def file_menu() -> QtWidgets.QMenu:
-            menu = QtWidgets.QMenu(title="File")
+            menu = QtWidgets.QMenu(title="文件")
 
             open_file = QtGui.QAction(
                 self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DirOpenIcon),
-                "Open File",
+                "打开文件",
                 self
             )
-            open_file.setStatusTip("Open a NPK file.")
+            open_file.setStatusTip("打开NPK文件。")
             open_file.setShortcut("Ctrl+O")
             menu.addAction(open_file)
 
@@ -241,15 +251,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 if self.config is None:
                     QtWidgets.QMessageBox.warning(
                         self,
-                        "No Config Selected",
-                        "Please select a config before opening a file."
+                        "未选择配置",
+                        "请在打开文件前选择一个配置。"
                     )
                     return
                 file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
                     self,
-                    "Open NPK File",
+                    "打开NPK文件",
                     "",
-                    "NPK Files (*.npk);;All Files (*)"
+                    "NPK文件 (*.npk);;所有文件 (*)"
                 )
                 if file_path:
                     self.load_npk(file_path)
@@ -259,10 +269,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
             unload_npk = QtGui.QAction(
                 self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton),
-                "Unload NPK",
+                "卸载NPK",
                 self
             )
-            unload_npk.setStatusTip("Unload the current NPK file.")
+            unload_npk.setStatusTip("卸载当前NPK文件。")
             unload_npk.setShortcut("Ctrl+W")
             unload_npk.setEnabled(False)  # Initially disabled
             unload_npk.triggered.connect(self.unload_npk)
@@ -275,11 +285,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.style().standardIcon(
                     QtWidgets.QStyle.StandardPixmap.SP_FileDialogContentsView
                 ),
-                "Config Manager",
+                "配置管理器",
                 self
             )
             config_manager.setMenuRole(QtGui.QAction.MenuRole.NoRole)
-            config_manager.setStatusTip("Open the Config Manager.")
+            config_manager.setStatusTip("打开配置管理器。")
             config_manager.setShortcut("Ctrl+M")
 
             def open_config_manager():
@@ -300,15 +310,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if sys.platform == "darwin":
             app_menu = self.menuBar().addMenu("NeoXtractor")
 
-        settings_action = (app_menu or self.menuBar()).addAction("Settings")
-        settings_action.setStatusTip("Open Settings window.")
+        settings_action = (app_menu or self.menuBar()).addAction("设置")
+        settings_action.setStatusTip("打开设置窗口。")
         settings_action.setMenuRole(QtGui.QAction.MenuRole.PreferencesRole)
         settings_action.triggered.connect(
             lambda: SettingsWindow(self.settings_manager, self).exec()
         )
 
         def tools_menu() -> QtWidgets.QMenu:
-            menu = QtWidgets.QMenu("Tools")
+            menu = QtWidgets.QMenu("工具")
 
             for viewer in ALL_VIEWERS:
                 menu.addAction(
@@ -320,7 +330,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.menuBar().addMenu(tools_menu())
 
-        (app_menu or self.menuBar()).addAction("About",
+        (app_menu or self.menuBar()).addAction("关于",
             lambda: AboutWindow(self).exec()
         ).setMenuRole(QtGui.QAction.MenuRole.AboutRole)
 
@@ -344,9 +354,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if viewer_window.isVisible():
                 if QtWidgets.QMessageBox.warning(
                     self,
-                    "Close Viewers",
-                    "There are still viewer windows open.\n" +
-                    "Are you sure you want to quit?",
+                    "关闭查看器",
+                    "仍有查看器窗口打开。\n" +
+                    "确定要退出吗？",
                     buttons=QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel,
                     defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,
                 ) == QtWidgets.QMessageBox.StandardButton.Ok:
@@ -404,9 +414,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if previous_config is not None and self.app.property("npk_file") is not None and \
                 QtWidgets.QMessageBox.warning(
                     self,
-                    "NPK File loaded",
-                    "Changing the config will unload the NPK file.\n" +
-                    "Are you sure you want to continue?",
+                    "NPK文件已加载",
+                    "更改配置将卸载NPK文件。\n" +
+                    "确定要继续吗？",
                     buttons=QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel,
                     defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,
             ) == QtWidgets.QMessageBox.StandardButton.Cancel:
@@ -434,7 +444,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.active_config.setEnabled(False)
         self.progress_bar.setVisible(True)
 
-        self.progress_bar.setFormat("Reading NPK file...")
+        self.progress_bar.setFormat("正在读取NPK文件...")
         self.progress_bar.setRange(0, 0)
 
         self.list_widget.setDisabled(True)
@@ -450,7 +460,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.list_widget.refresh_npk_file()
 
-        self.progress_bar.setFormat("Loading entries... (%v/%m)")
+        self.progress_bar.setFormat("正在加载条目... (%v/%m)")
         self.progress_bar.setRange(0, npk_file.file_count)
         self.progress_bar.setValue(0)
 
