@@ -1,17 +1,12 @@
 """Image conversion functions for various formats."""
 
-# TODO: Code cleanup
-
 import io
 import math
-from typing import cast
+from typing import cast, Tuple, Optional
 import texture2ddecoder
 from PIL import Image, ImageFile
-from bitstring import ConstBitStream
 
-from core.binary_readers import read_uintle32, read_uintle64
-
-#tga, ico, tiff, dds
+# tga, ico, tiff, dds
 def _pillow_image_conversion(data, fmt):
     return Image.open(io.BytesIO(data), "r", (fmt.upper(), "PNG"))
 
@@ -51,7 +46,7 @@ def _decode_correct_format(fmt, data, width, height, block_x = 4, block_y = 4):
             return Image.frombytes("RGBA", (width, height), data, 'raw', ("RGBA"))
     return Image.frombytes("RGBA", (width, height), data, 'raw', ("BGRA"))
 
-#this code was derived from TeaEffTeu's works and he slightly guided me, thank you very much for sharing!!
+# this code was derived from TeaEffTeu's works and he slightly guided me, thank you very much for sharing!!
 def compblks_convert(data):
     """Convert CompBlks to Image."""
 
@@ -67,17 +62,23 @@ def compblks_convert(data):
 
 def pvr_convert(data: bytes):
     """Convert PVR to Image."""
+    # 辅助函数：从字节流读取小端32位
+    def read_u32(offset):
+        return int.from_bytes(data[offset:offset+4], 'little')
+    
+    # 辅助函数：从字节流读取小端64位
+    def read_u64(offset):
+        return int.from_bytes(data[offset:offset+8], 'little')
 
-    f = ConstBitStream(io.BytesIO(data))
-    f.read("pad64")
-    pixel_format = read_uintle64(f)
-    f.read("pad64")
-    height, width, depth = f.readlist("3*uintle32")
-    f.read("pad96")
-    meta_data_size = read_uintle32(f)
-    f.pos += meta_data_size * 8
-
-    image_data = f.read("bytes")
+    pixel_format = read_u64(8)
+    height = read_u32(24)
+    width = read_u32(28)
+    depth = read_u32(32)
+    meta_data_size = read_u32(44)
+    
+    image_data_offset = 52 + meta_data_size
+    image_data = data[image_data_offset:]
+    
     match pixel_format:
         case 3:
             return _decode_correct_format("PVRTC", image_data, width, height)
@@ -96,7 +97,7 @@ def pvr_convert(data: bytes):
         case 30:
             return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
         case 31:
-            return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
+            return _decode_correct_format("ASTC", image_data, width, height, 6, 6)
         case 32:
             return _decode_correct_format("ASTC", image_data, width, height, 8, 5)
         case 33:
@@ -117,68 +118,78 @@ def pvr_convert(data: bytes):
             return _decode_correct_format("ASTC", image_data, width, height, 12, 12)
     raise ValueError(f"Unsupported PVR pixel format: {pixel_format}")
 
-#https://registry.khronos.org/KTX/specs/1.0/ktxspec.v1.html
-#https://github.com/KhronosGroup/KTX-Software/blob/main/lib/gl_format.h
+# https://registry.khronos.org/KTX/specs/1.0/ktxspec.v1.html
 def ktx_convert(data: bytes):
-    """Convert KTX to Image."""
-    f = ConstBitStream(io.BytesIO(data))
-    f.read("pad224")
-    glInternalFormat = read_uintle32(f)
-    f.read("pad32")
-    width, height = f.readlist("2*uintle32")
-    f.read("pad128")
-    bytesOfKeyValueData  = read_uintle32(f)
-    f.read(f"pad{bytesOfKeyValueData*8}")
-    image_size = read_uintle32(f)
+    """Convert KTX to Image (修复版：纯字节读取，修正ASTC映射)"""
+    # 辅助函数：读取小端32位无符号整数
+    def read_u32(offset):
+        return int.from_bytes(data[offset:offset+4], 'little')
 
-    image_data = f.read(f"bytes{image_size}")
-    match glInternalFormat:
-        case 0x8058:
-            return _decode_correct_format("RGBA8", image_data, width, height)
-        case 0x8D64:
-            return _decode_correct_format("ETC1", image_data, width, height)
-        case 0x9274:
-            return _decode_correct_format("ETC2", image_data, width, height)
-        case 0x9276:
-            return _decode_correct_format("ETC2A1", image_data, width, height)
-        case 0x9278:
-            return _decode_correct_format("ETC2A8", image_data, width, height)
-        case 0x93B0:
-            return _decode_correct_format("ASTC", image_data, width, height, 4, 4)
-        case 0x93B1:
-            return _decode_correct_format("ASTC", image_data, width, height, 5, 4)
-        case 0x93B2:
-            return _decode_correct_format("ASTC", image_data, width, height, 5, 5)
-        case 0x93B3:
-            return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
-        case 0x93B4:
-            return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
-        case 0x93B5:
-            return _decode_correct_format("ASTC", image_data, width, height, 8, 5)
-        case 0x93B6:
-            return _decode_correct_format("ASTC", image_data, width, height, 8, 6)
-        case 0x93B7:
-            return _decode_correct_format("ASTC", image_data, width, height, 8, 8)
-        case 0x93B8:
-            return _decode_correct_format("ASTC", image_data, width, height, 10, 5)
-        case 0x93B9:
-            return _decode_correct_format("ASTC", image_data, width, height, 10, 6)
-        case 0x93BA:
-            return _decode_correct_format("ASTC", image_data, width, height, 10, 8)
-        case 0x93BB:
-            return _decode_correct_format("ASTC", image_data, width, height, 10, 10)
-        case 0x93BC:
-            return _decode_correct_format("ASTC", image_data, width, height, 12, 10)
-        case 0x93BD:
-            return _decode_correct_format("ASTC", image_data, width, height, 12, 12)
-    raise ValueError(f"Unknown KTX format: {glInternalFormat:#x}")
+    # 1. 验证魔数 (Identifier)
+    expected_magic = b'\xAB\x4B\x54\x58\x20\x31\x31\xBB\x0D\x0A\x1A\x0A'
+    if data[0:12] != expected_magic:
+        raise ValueError("无效的KTX文件：魔数不匹配")
+
+    # 2. 按标准字节偏移读取头信息
+    glInternalFormat = read_u32(0x1C)
+    width = read_u32(0x24)
+    height = read_u32(0x28)
+    bytesOfKeyValueData = read_u32(0x3C)
+
+    # 3. 计算图像数据位置
+    img_data_offset = 64 + bytesOfKeyValueData  # 固定头(64字节) + 元数据
+    image_size = read_u32(img_data_offset)
+    image_data = data[img_data_offset + 4 : img_data_offset + 4 + image_size]
+
+    # 4. 完整的格式映射表 (修正了ASTC映射)
+    # ASTC格式映射
+    astc_formats = {
+        0x93B0: (4, 4),
+        0x93B1: (5, 4),
+        0x93B2: (5, 5),
+        0x93B3: (6, 5),
+        0x93B4: (6, 6),  # ✅ 修正：0x93B4 是 ASTC 6x6
+        0x93B5: (8, 5),
+        0x93B6: (8, 6),
+        0x93B7: (8, 8),
+        0x93B8: (10, 5),
+        0x93B9: (10, 6),
+        0x93BA: (10, 8),
+        0x93BB: (10, 10),
+        0x93BC: (12, 10),
+        0x93BD: (12, 12),
+    }
+
+    # 5. 格式匹配与解码
+    if glInternalFormat in astc_formats:
+        bx, by = astc_formats[glInternalFormat]
+        return _decode_correct_format("ASTC", image_data, width, height, bx, by)
+    elif glInternalFormat == 0x8058:
+        return _decode_correct_format("RGBA8", image_data, width, height)
+    elif glInternalFormat == 0x8D64:
+        return _decode_correct_format("ETC1", image_data, width, height)
+    elif glInternalFormat == 0x9274:
+        return _decode_correct_format("ETC2", image_data, width, height)
+    elif glInternalFormat == 0x9276:
+        return _decode_correct_format("ETC2A1", image_data, width, height)
+    elif glInternalFormat == 0x9278:
+        return _decode_correct_format("ETC2A8", image_data, width, height)
+    else:
+        raise ValueError(f"不支持的KTX格式: 0x{glInternalFormat:08X}")
 
 def astc_convert(data: bytes):
     """Convert ASTC to Image."""
-    f = ConstBitStream(io.BytesIO(data))
-    block_x, block_y = cast(tuple[int, int], f.readlist("pad32, 2*uintle8 , pad8"))
-    width, height = f.readlist("2*uintle24, pad24")
-    return _decode_correct_format("ASTC", f.read("bytes"), width, height, block_x, block_y)
+    # 辅助函数：读取小端24位无符号整数
+    def read_u24(offset):
+        return int.from_bytes(data[offset:offset+3], 'little')
+
+    block_x = data[4]
+    block_y = data[5]
+    width = read_u24(8)
+    height = read_u24(11)
+    image_data = data[16:]
+    
+    return _decode_correct_format("ASTC", image_data, width, height, block_x, block_y)
 
 def convert_image(data, extension):
     """Identify and convert image data to Image."""
