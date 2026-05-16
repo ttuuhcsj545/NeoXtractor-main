@@ -3,6 +3,7 @@
 import json
 import struct
 import base64
+import numpy as np
 
 from core.mesh_loader import MeshData
 
@@ -60,12 +61,57 @@ def convert(mesh: MeshData) -> bytes:
 
     index_buffer = [idx for face in indices for idx in face]
 
-    # Handle bone data if available - but disable skinning to avoid mesh distortion
-    # Skip all bone skinning data to prevent mesh distortion
-    # The bones will be created as nodes but not applied to the mesh
+    # Handle bone data with proper skinning support
     joint_buffer = []
     weight_buffer = []
     inverse_bind_matrices = []
+
+    if mesh.has_bones and mesh.vertex_bone and mesh.vertex_weight:
+        bone_count = len(mesh.bone_name)
+
+        for vbones, vweights in zip(mesh.vertex_bone, mesh.vertex_weight):
+            # Process up to 4 bone influences per vertex
+            valid_joints = []
+            valid_weights = []
+
+            for bone_idx, weight in zip(vbones, vweights):
+                # Filter out invalid bone indices:
+                # - 255 is commonly used as "no bone" sentinel
+                # - Any index >= bone_count is invalid
+                if bone_idx != 255 and bone_idx < bone_count:
+                    valid_joints.append(bone_idx)
+                    valid_weights.append(weight)
+
+            # Pad to 4 slots, replacing invalid slots with first valid bone or 0
+            for i in range(4):
+                if i < len(valid_joints):
+                    joint_buffer.append(valid_joints[i])
+                    weight_buffer.append(valid_weights[i])
+                else:
+                    # Use first valid bone with weight 0, or bone 0 if no valid bones
+                    joint_buffer.append(valid_joints[0] if valid_joints else 0)
+                    weight_buffer.append(0.0)
+
+            # Normalize weights to sum to 1.0
+            weight_sum = sum(weight_buffer[-4:])
+            if weight_sum > 0.0001:  # Avoid division by near-zero
+                for j in range(4):
+                    weight_buffer[-4 + j] /= weight_sum
+            else:
+                # If no valid weights, assign full weight to first bone
+                weight_buffer[-4] = 1.0
+
+        # Compute inverse bind matrices from bone matrices
+        # Each bone_matrix is a 4x4 transformation matrix
+        for bone_mat in mesh.bone_matrix:
+            mat = np.array(bone_mat, dtype=np.float32)
+            # Invert to get inverse bind matrix (column-major order for glTF)
+            try:
+                inv = np.linalg.inv(mat)
+                inverse_bind_matrices.extend(inv.flatten(order='F').tolist())
+            except np.linalg.LinAlgError:
+                # If not invertible, use identity matrix
+                inverse_bind_matrices.extend(np.eye(4, dtype=np.float32).flatten(order='F').tolist())
 
     # Create binary buffer
     binary_data = bytearray()
@@ -299,12 +345,10 @@ def convert(mesh: MeshData) -> bytes:
         attributes["NORMAL"] = normal_accessor
     if uv_accessor is not None:
         attributes["TEXCOORD_0"] = uv_accessor
-    # Skip bone attributes to prevent mesh distortion
-    # TODO: see if it's fixable
-    # if joint_accessor is not None:
-    #     attributes["JOINTS_0"] = joint_accessor
-    # if weight_accessor is not None:
-    #     attributes["WEIGHTS_0"] = weight_accessor
+    # Enable bone skinning with properly filtered joint indices
+    if joint_accessor is not None and weight_accessor is not None:
+        attributes["JOINTS_0"] = joint_accessor
+        attributes["WEIGHTS_0"] = weight_accessor
 
     primitive = {
         "attributes": attributes,
@@ -336,18 +380,41 @@ def convert(mesh: MeshData) -> bytes:
 
             gltf_data["nodes"].append(node)
 
-        # Create mesh node without skin (to prevent distortion)
-        gltf_data["nodes"].append({
-            "name": "Mesh",
-            "mesh": 0
-        })
+        # Create skin if we have proper inverse bind matrices
+        if ibm_accessor is not None:
+            skin_index = len(gltf_data["skins"])
+            gltf_data["skins"].append({
+                "inverseBindMatrices": ibm_accessor,
+                "joints": list(range(len(bone_names))),
+                "name": "Armature"
+            })
 
-        # Find root bones (those with parent -1) and create scene structure
-        root_bones = [i for i, parent in enumerate(bone_hierarchy) if parent == -1]
-        mesh_node_index = len(bone_names)
+            # Create mesh node with skin reference
+            mesh_node_index = len(gltf_data["nodes"])
+            gltf_data["nodes"].append({
+                "name": "Mesh",
+                "mesh": 0,
+                "skin": skin_index
+            })
 
-        # Update scene to include root bones and mesh separately
-        gltf_data["scenes"][0]["nodes"] = root_bones + [mesh_node_index]
+            # Find root bones and create root node
+            root_bones = [i for i, parent in enumerate(bone_hierarchy) if parent == -1]
+            root_node_index = len(gltf_data["nodes"])
+            gltf_data["nodes"].append({
+                "name": "Root",
+                "children": root_bones + [mesh_node_index]
+            })
+            gltf_data["scenes"][0]["nodes"] = [root_node_index]
+        else:
+            # Create mesh node without skin
+            gltf_data["nodes"].append({
+                "name": "Mesh",
+                "mesh": 0
+            })
+
+            root_bones = [i for i, parent in enumerate(bone_hierarchy) if parent == -1]
+            mesh_node_index = len(bone_names)
+            gltf_data["scenes"][0]["nodes"] = root_bones + [mesh_node_index]
     else:
         # Create simple mesh node
         gltf_data["nodes"].append({
